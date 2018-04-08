@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">arduino_synthetizer</string>
+
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
+    <string name="force_panel_sound_title">FORCE PRESSURE PANEL</string>
+    <string name="sensor_panel_sound_title">SENSORS VALUES</string>
+    <string name="force_panel_sound_info">Press harder to increase sound effects</string>
+    <string name="oscilator_1_txt">Osc 1</string>
+    <string name="oscilator_2_txt">Osc 2</string>
+    <string name="filter_txt">Filter</string>
+    <string name="lfo_txt">LFO</string>
+    <string name="volume_txt">Volume</string>
+    <string name="mobile_sensors_txt">Mobile</string>
+    <string name="arduino_sensors_txt">Arduino</string>
+    <string name="mobile_sensors_info">Mobile sensors value</string>
+    <string name="arduino_sensors_info">Arduino sensors value</string>
+    <string name="sensor_unknown_value">Unknown value</string>
+    <string name="arduino_not_connected">Can\'t get value from Arduino</string>
+
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+</resources>
