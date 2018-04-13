@@ -2,10 +2,7 @@ package alexiscanevali.arduino_synthetizer;
 
 /* MÉMO DE CE QU'IL RESTE À FAIRE - FONCTIONNALITÉS/INTERFACE GRAPHIQUE DE L'APP
 * PERSONAL REMAINING STUFF TO DO - ONLY FOR ALEXIS
-*
-* Implémenter les capteurs de lumière, proximité
-* Implémenter la détection de la force sur le paneau bas droit
-* Mettre à jour l'interface graphique avec la valeur des capteurs
+* Tests bluetooth
 */
 
 /* MÉMO DE CE QU'IL RESTE À FAIRE - GÉNÉRAL / REMAINING STUFF TO DO - GENERAL
@@ -13,23 +10,25 @@ package alexiscanevali.arduino_synthetizer;
 * Passage d'informations avec l'arduino / Exchanging data between app and arduino
 * Effectuer les actions envoyées par le mobile / Executing actions sent by mobile app
 * */
+
 import android.annotation.SuppressLint;
-import android.app.usage.UsageEvents;
-import android.graphics.Canvas;
-import android.graphics.Color;
+import android.content.AsyncQueryHandler;
+import android.content.Context;
 import android.graphics.Matrix;
-import android.graphics.Paint;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.animation.AnimationUtils;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -107,7 +106,7 @@ public class SynthetizerCommands extends AppCompatActivity {
         }
     };
 
-        /*
+    /*
     * CUSTOM CLASS VARIABLE BELOW
     * */
 
@@ -122,6 +121,49 @@ public class SynthetizerCommands extends AppCompatActivity {
     private double rotationOsc1 = 0;
     private double rotationOsc2 = 0;
     private int deviceSensorsToDisplay=-1;
+    private SensorManager sensorManager;
+    private Sensor lightSensor;
+    private Sensor proximitySensor;
+    private SensorEventListener lightSensorEventListener = new SensorEventListener() {
+        @Override
+        public final void onSensorChanged(SensorEvent event) {
+            float lux = 0;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.CUPCAKE) {
+                lux = event.values[0];
+            }
+            //Sensor max value: 40 000
+            //Real life usage: 200
+            if(lux>=200.0){
+                pctLightSensor = 100;
+            }else{
+                pctLightSensor = (int) Math.round((lux*100.0)/200.0);
+            }
+            updateSensorDisplayUI(deviceSensorsToDisplay);
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+        }
+    };
+
+    private SensorEventListener proximitySensorEventListener = new SensorEventListener() {
+        @Override
+        public final void onSensorChanged(SensorEvent event) {
+            float distance = 0;
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.CUPCAKE) {
+                distance = event.values[0];
+            }
+            pctProximitySensor = 100-((int)(distance*10));
+            updateSensorDisplayUI(deviceSensorsToDisplay);
+        }
+
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+
+        }
+    };
+    private LinearLayout forcetouchpanel;
 
     /*
     * END OF CUSTOM CLASS VARIABLE
@@ -270,6 +312,36 @@ public class SynthetizerCommands extends AppCompatActivity {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 updateSeekBarUI();
+            }
+        });
+
+        /*
+        * Sensors initialisation
+        * */
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.CUPCAKE) {
+            lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+            sensorManager.registerListener(lightSensorEventListener, lightSensor, SensorManager.SENSOR_DELAY_NORMAL);
+            proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
+            sensorManager.registerListener(proximitySensorEventListener,proximitySensor,SensorManager.SENSOR_DELAY_NORMAL);
+        }
+
+        forcetouchpanel = (LinearLayout) findViewById(R.id.panel_force_pressure);
+        forcetouchpanel.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                switch (motionEvent.getAction()){
+                    case MotionEvent.ACTION_UP:
+                        pctForcePressure = 0;
+                        break;
+                    default:
+                        pctForcePressure = (int)(motionEvent.getPressure()*100.0);
+                        break;
+
+                }
+                updateSensorDisplayUI(deviceSensorsToDisplay);
+                return true;
             }
         });
     }
@@ -475,33 +547,33 @@ public class SynthetizerCommands extends AppCompatActivity {
     }
 
     public void updateSensorDisplayUI(int mobileOrArduino){
-        TextView txt_sensor_1 = (TextView) findViewById(R.id.txt_sensor_display_1);
-        TextView txt_sensor_2 = (TextView) findViewById(R.id.txt_sensor_display_2);
-        TextView txt_sensor_3 = (TextView) findViewById(R.id.txt_sensor_display_3);
-        TextView txt_sensor_4 = (TextView) findViewById(R.id.txt_sensor_display_4);
-        TextView txt_sensor_5 = (TextView) findViewById(R.id.txt_sensor_display_5);
+        TextView txt_sensor_display_1 = (TextView) findViewById(R.id.txt_sensor_display_1);
+        TextView txt_sensor_display_2 = (TextView) findViewById(R.id.txt_sensor_display_2);
+        TextView txt_sensor_display_3 = (TextView) findViewById(R.id.txt_sensor_display_3);
+        TextView txt_sensor_display_4 = (TextView) findViewById(R.id.txt_sensor_display_4);
+        TextView txt_sensor_display_5 = (TextView) findViewById(R.id.txt_sensor_display_5);
 
         switch (mobileOrArduino){
             case 0://Mobile
-                txt_sensor_1.setText("Mobile sensors");
-                txt_sensor_2.setText("Light sensor: "+Integer.toString(pctLightSensor)+"%");
-                txt_sensor_3.setText("Proximity sensor: "+Integer.toString(pctProximitySensor)+"%");
-                txt_sensor_4.setText("Force pressure: "+Integer.toString(pctForcePressure)+"%");
-                txt_sensor_5.setText("");
+                txt_sensor_display_1.setText("Mobile sensors");
+                txt_sensor_display_2.setText("Light sensor: "+Integer.toString(pctLightSensor)+"%");
+                txt_sensor_display_3.setText("Proximity sensor: "+Integer.toString(pctProximitySensor)+"%");
+                txt_sensor_display_4.setText("Force pressure: "+Integer.toString(pctForcePressure)+"%");
+                txt_sensor_display_5.setText("");
                 break;
             case 1://Arduino
-                txt_sensor_1.setText("Arduino sensors");
-                txt_sensor_2.setText("");
-                txt_sensor_3.setText("");
-                txt_sensor_4.setText("");
-                txt_sensor_5.setText("");
+                txt_sensor_display_1.setText("Arduino sensors");
+                txt_sensor_display_2.setText("");
+                txt_sensor_display_3.setText("");
+                txt_sensor_display_4.setText("");
+                txt_sensor_display_5.setText("");
                 break;
             default:
-                txt_sensor_1.setText("Select device sensors");
-                txt_sensor_2.setText("");
-                txt_sensor_3.setText("");
-                txt_sensor_4.setText("");
-                txt_sensor_5.setText("");
+                txt_sensor_display_1.setText("Select device sensors");
+                txt_sensor_display_2.setText("");
+                txt_sensor_display_3.setText("");
+                txt_sensor_display_4.setText("");
+                txt_sensor_display_5.setText("");
                 break;
         }
     }
@@ -518,6 +590,8 @@ public class SynthetizerCommands extends AppCompatActivity {
         }
         updateSensorDisplayUI(deviceSensorsToDisplay);
     }
+
+
 
     /*
     * END OF CUSTOM METHODS
