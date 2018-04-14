@@ -14,6 +14,7 @@ package alexiscanevali.arduino_synthetizer;
 import android.annotation.SuppressLint;
 import android.content.AsyncQueryHandler;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Matrix;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -32,6 +33,9 @@ import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.bluetooth.*;
+
+import java.util.Set;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -164,6 +168,9 @@ public class SynthetizerCommands extends AppCompatActivity {
         }
     };
     private LinearLayout forcetouchpanel;
+
+    private final static int REQUEST_CODE_ENABLE_BLUETOOTH = 0;
+    private Set<BluetoothDevice> devices;
 
     /*
     * END OF CUSTOM CLASS VARIABLE
@@ -344,6 +351,30 @@ public class SynthetizerCommands extends AppCompatActivity {
                 return true;
             }
         });
+
+        /*
+        * Bluetooth setup
+        * */
+        BluetoothAdapter bluetooth = BluetoothAdapter.getDefaultAdapter();
+        String BTstatus;
+
+        if(bluetooth != null)
+        {
+            if (bluetooth.isEnabled()) {
+                String mydeviceaddress = bluetooth.getAddress();
+                String mydevicename = bluetooth.getName();
+                BTstatus = mydevicename + " : " + mydeviceaddress;
+                devices = bluetooth.getBondedDevices();
+            }
+            else
+            {
+                BTstatus="Bluetooth not enabled";
+                requestUserToEnableBluetooth();
+            }
+        } else {
+            BTstatus= "There is no bluetooth dongle on this device";
+        }
+        Toast.makeText(this, BTstatus, Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -578,6 +609,11 @@ public class SynthetizerCommands extends AppCompatActivity {
         }
     }
 
+    private void requestUserToEnableBluetooth(){
+        Intent enableBlueTooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+        startActivityForResult(enableBlueTooth, REQUEST_CODE_ENABLE_BLUETOOTH);
+    }
+
     public void switchSensorDisplayMode(View view){
         int id = view.getId();
 
@@ -589,6 +625,19 @@ public class SynthetizerCommands extends AppCompatActivity {
             deviceSensorsToDisplay = -1;
         }
         updateSensorDisplayUI(deviceSensorsToDisplay);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_CODE_ENABLE_BLUETOOTH)
+            return;
+        if (resultCode == RESULT_OK) {
+            // User activated bluetooth
+        } else {
+            // User hasn't activated bluetooth
+            requestUserToEnableBluetooth();
+        }
     }
 
 
