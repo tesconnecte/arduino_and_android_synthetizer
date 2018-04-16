@@ -10,13 +10,9 @@ package alexiscanevali.arduino_synthetizer;
 * Passage d'informations avec l'arduino / Exchanging data between app and arduino
 * Effectuer les actions envoyées par le mobile / Executing actions sent by mobile app
 * */
-
-import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.AsyncQueryHandler;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.graphics.Matrix;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -25,11 +21,10 @@ import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.app.ActivityCompat;
-import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.telephony.TelephonyManager;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
@@ -42,7 +37,6 @@ import android.bluetooth.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -132,7 +126,7 @@ public class SynthetizerCommands extends AppCompatActivity {
     private int yCurrentCoordinate = 0;
     private double rotationOsc1 = 0;
     private double rotationOsc2 = 0;
-    private int deviceSensorsToDisplay = -1;
+    private int deviceSensorsToDisplay = 0;
     private SensorManager sensorManager;
     private Sensor lightSensor;
     private Sensor proximitySensor;
@@ -248,11 +242,13 @@ public class SynthetizerCommands extends AppCompatActivity {
                         xCurrentCoordinate = (int) motionEvent.getX();
                         yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc1(false);
+                        sendDataToArduino();
                         break;
                     case MotionEvent.ACTION_UP:
                         xCurrentCoordinate = (int) motionEvent.getX();
                         yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc1(true);
+                        sendDataToArduino();
                         break;
                 }
                 return true;
@@ -272,11 +268,13 @@ public class SynthetizerCommands extends AppCompatActivity {
                         xCurrentCoordinate = (int) motionEvent.getX();
                         yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc2(false);
+                        sendDataToArduino();
                         break;
                     case MotionEvent.ACTION_UP:
                         xCurrentCoordinate = (int) motionEvent.getX();
                         yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc2(true);
+                        sendDataToArduino();
                         break;
                 }
                 return true;
@@ -289,6 +287,7 @@ public class SynthetizerCommands extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
                 pctFilter = i;
                 updateSeekBarUI();
+                sendDataToArduino();
             }
 
             @Override
@@ -308,6 +307,7 @@ public class SynthetizerCommands extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
                 pctLFO = i;
                 updateSeekBarUI();
+                sendDataToArduino();
             }
 
             @Override
@@ -327,6 +327,7 @@ public class SynthetizerCommands extends AppCompatActivity {
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
                 pctVolume = i;
                 updateSeekBarUI();
+                sendDataToArduino();
             }
 
             @Override
@@ -385,6 +386,7 @@ public class SynthetizerCommands extends AppCompatActivity {
         MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
         Intent intent = getIntent();
         address = intent.getStringExtra(MainActivity.EXTRA_DEVICE_ADDRESS);
+        //address = "98:D3:37:00:AE:66";
         bluetoothIn = new Handler() {
             public void handleMessage(android.os.Message msg) {
                 if (msg.what == handlerState) {										//if message is what we want
@@ -413,18 +415,23 @@ public class SynthetizerCommands extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         BluetoothDevice device = btAdapter.getRemoteDevice(address);
+        Log.i("Bluetooth",address+device.getName());
 
         try {
             btSocket = createBluetoothSocket(device);
+            Log.i("Bluetooth",btSocket.toString());
         } catch (IOException e) {
             Toast.makeText(getBaseContext(), "Socket creation failed", Toast.LENGTH_LONG).show();
+            Log.i("Bluetooth",e.getMessage());
         }
         // Establish the Bluetooth socket connection.
         try
         {
             btSocket.connect();
+            Log.i("Bluetooth",btSocket.toString());
         } catch (IOException e) {
             Toast.makeText(this,"Connection failed"+e.getMessage(),Toast.LENGTH_LONG);
+            Log.i("Bluetooth","ERROR"+e.getMessage());
             try
             {
                 btSocket.close();
@@ -505,57 +512,72 @@ public class SynthetizerCommands extends AppCompatActivity {
         /*C key triggered*/
         if((id==R.id.c_low_key)||(id==R.id.c_low_right)){
             Toast.makeText(this, "C Low", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("131K");
         }
         /*C# key triggered*/
         else if((id==R.id.c_sharp_left)||(id==R.id.c_sharp_right)){
             Toast.makeText(this, "C# Low", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("139K");
         }
         /*D key triggered*/
         else if((id==R.id.d_key_left)||(id==R.id.d_key)||(id==R.id.d_key_right)){
             Toast.makeText(this, "D", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("147K");
+
         }
         /*D# key triggered*/
         else if((id==R.id.d_sharp_left)||(id==R.id.d_sharp_right)){
             Toast.makeText(this, "D#", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("156K");
         }
         /*E key triggered*/
         else if((id==R.id.e_key_left)||(id==R.id.e_key)){
             Toast.makeText(this, "E", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("165K");
         }
         /*F key triggered*/
         else if((id==R.id.f_key_right)||(id==R.id.f_key)){
             Toast.makeText(this, "F", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("175K");
         }
         /*F key triggered*/
         else if((id==R.id.f_sharp_left)||(id==R.id.f_sharp_right)){
             Toast.makeText(this, "F#", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("185K");
         }
         /*G key triggered*/
         else if((id==R.id.g_key_left)||(id==R.id.g_key)||(id==R.id.g_key_right)){
             Toast.makeText(this, "G", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("196K");
         }
         /*G# key triggered*/
         else if((id==R.id.g_sharp_left)||(id==R.id.g_sharp_right)){
             Toast.makeText(this, "G#", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("208K");
         }
         /*A key triggered*/
         else if((id==R.id.a_key_left)||(id==R.id.a_key)||(id==R.id.a_key_right)){
             Toast.makeText(this, "A", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("220K");
         }
         /*A# key triggered*/
         else if((id==R.id.a_sharp_left)||(id==R.id.a_sharp_right)){
             Toast.makeText(this, "A#", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("233K");
         }
         /*B key triggered*/
         else if((id==R.id.b_key_left)||(id==R.id.b_key)){
             Toast.makeText(this, "B", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("247K");
         }
         /*High C key triggered*/
         else if((id==R.id.c_high_key)||(id==R.id.c_high_key_right)){
             Toast.makeText(this, "C High", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("262K");
         }
         else if(id==R.id.c_high_sharp){
             Toast.makeText(this, "C# High", Toast.LENGTH_SHORT).show();
+            mConnectedThread.write("277K");
         } else {
             Toast.makeText(this, "Unknown key", Toast.LENGTH_SHORT).show();
         }
@@ -656,11 +678,10 @@ public class SynthetizerCommands extends AppCompatActivity {
                 txt_sensor_display_3.setText("Proximity sensor: "+Integer.toString(pctProximitySensor)+"%");
                 txt_sensor_display_4.setText("Force pressure: "+Integer.toString(pctForcePressure)+"%");
                 txt_sensor_display_5.setText("");
-                sendDataToArduino();
                 break;
             case 1://Arduino
                 txt_sensor_display_1.setText("Arduino sensors");
-                txt_sensor_display_2.setText(incomingMessage);
+                txt_sensor_display_2.setText("Arduino sensors communication not implemented in this version");
                 txt_sensor_display_3.setText("");
                 txt_sensor_display_4.setText("");
                 txt_sensor_display_5.setText("");
@@ -707,15 +728,34 @@ public class SynthetizerCommands extends AppCompatActivity {
         }
     }
 
+    public String getIntToArduinoFormat(int value){
+        String arduinoValue;
+        if(value==0){
+            arduinoValue="000";
+        } else if((value>0)&&(value<10)){
+            arduinoValue="00"+Integer.toString(value);
+        } else if((value>=10)&&(value<100)){
+            arduinoValue="0"+Integer.toString(value);
+        } else {
+            arduinoValue = "100";
+        }
+        return  arduinoValue;
+    }
+
     public void sendDataToArduino(){
-        mConnectedThread.write("O"+Integer.toString(pctOsc1));
-        mConnectedThread.write("S"+Integer.toString(pctOsc2));
-        mConnectedThread.write("F"+Integer.toString(pctFilter));
-        mConnectedThread.write("L"+Integer.toString(pctLFO));
-        mConnectedThread.write("V"+Integer.toString(pctVolume));
-        mConnectedThread.write("I"+Integer.toString(pctLightSensor));
+        Log.i("ArduinoData",getIntToArduinoFormat(pctOsc1)+"O");
+        Log.i("ArduinoData",getIntToArduinoFormat(pctOsc2)+"Q");
+        Log.i("ArduinoData",getIntToArduinoFormat(pctFilter)+"F");
+        Log.i("ArduinoData",getIntToArduinoFormat(pctLFO)+"L");
+        Log.i("ArduinoData",getIntToArduinoFormat(pctVolume)+"V");
+        mConnectedThread.write(getIntToArduinoFormat(pctOsc1)+"O");
+        mConnectedThread.write(getIntToArduinoFormat(pctOsc2)+"Q");
+        mConnectedThread.write(getIntToArduinoFormat(pctFilter)+"F");
+        mConnectedThread.write(getIntToArduinoFormat(pctLFO)+"L");
+        mConnectedThread.write(getIntToArduinoFormat(pctVolume)+"V");
+        /*mConnectedThread.write("I"+Integer.toString(pctLightSensor));
         mConnectedThread.write("P"+Integer.toString(pctProximitySensor));
-        mConnectedThread.write("F"+Integer.toString(pctForcePressure));
+        mConnectedThread.write("F"+Integer.toString(pctForcePressure));*/
     }
     /*
     * END OF CUSTOM METHODS

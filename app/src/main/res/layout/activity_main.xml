@@ -15,12 +15,21 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"
+            android:gravity="center"
+            android:text="@string/txt_welcome_app"
+            android:textStyle="bold"
+            android:textSize="@dimen/_20sdp"/>
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
             android:id="@+id/txt_bluetooth_info"/>
+
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:id="@+id/bluetoothSelector"
-            android:layout_weight="9">
+            android:layout_weight="8">
         </ScrollView>
     </LinearLayout>
 

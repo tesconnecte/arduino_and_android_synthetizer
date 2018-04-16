@@ -7,11 +7,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
-
-import java.lang.reflect.Array;
 import java.util.Set;
 
 public class MainActivity extends AppCompatActivity {
@@ -44,32 +42,27 @@ public class MainActivity extends AppCompatActivity {
                     noDevicePaired.setText("No device paired");
                     bluetoothDevices.addView(noDevicePaired);
                 }else{
-                    Button currentButton = new Button(this);
+                    Button currentButton;
                     int i=0;
+                    LinearLayout buttonsLayout = new LinearLayout(this);
+                    buttonsLayout.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.FILL_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                    buttonsLayout.setOrientation(LinearLayout.VERTICAL);
                     for(BluetoothDevice bd: devices){
+                        currentButton = new Button(this);
                         currentButton.setText(bd.getName()+" ("+bd.getAddress()+")");
                         currentButton.setId(i);
+                        currentButton.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.FILL_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
                         currentButton.setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View view) {
                                 int elementNumber = view.getId();
-                                String address = "ERROR";
-
-                                int i=0;
-                                for(BluetoothDevice bd: devices){
-                                    if(i==elementNumber){
-                                        address=bd.getAddress();
-                                    }
-                                    i++;
-                                }
-                                Intent intent = new Intent(MainActivity.this, MainActivity.class);
-                                intent.putExtra(EXTRA_DEVICE_ADDRESS, address);
-                                startActivity(intent);
+                                launchNextActivity(elementNumber);
                             }
                         });
-                        bluetoothDevices.addView(currentButton);
+                        buttonsLayout.addView(currentButton);
                         i++;
                     }
+                    bluetoothDevices.addView(buttonsLayout);
                 }
             } else {
                 BTstatus = "Bluetooth not enabled";
@@ -95,33 +88,27 @@ public class MainActivity extends AppCompatActivity {
                     noDevicePaired.setText("No device paired");
                     bluetoothDevices.addView(noDevicePaired);
                 }else{
-                    Button currentButton = new Button(this);
+                    Button currentButton;
                     int i=0;
+                    LinearLayout buttonsLayout = new LinearLayout(this);
+                    buttonsLayout.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.FILL_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+                    buttonsLayout.setOrientation(LinearLayout.VERTICAL);
                     for(BluetoothDevice bd: devices){
+                        currentButton = new Button(this);
                         currentButton.setText(bd.getName()+" ("+bd.getAddress()+")");
                         currentButton.setId(i);
+                        currentButton.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.FILL_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
                         currentButton.setOnClickListener(new View.OnClickListener() {
                             @Override
                             public void onClick(View view) {
                                 int elementNumber = view.getId();
-                                String address = "ERROR";
-
-                                int i=0;
-                                for(BluetoothDevice bd: devices){
-                                    if(i==elementNumber){
-                                        address=bd.getAddress();
-                                    }
-                                    i++;
-                                }
-
-                                Intent intent = new Intent(MainActivity.this, SynthetizerCommands.class);
-                                intent.putExtra(EXTRA_DEVICE_ADDRESS, address);
-                                startActivity(intent);
+                                launchNextActivity(elementNumber);
                             }
                         });
-                        bluetoothDevices.addView(currentButton);
+                        buttonsLayout.addView(currentButton);
                         i++;
                     }
+                    bluetoothDevices.addView(buttonsLayout);
                 }
             } else {
                 BTstatus = "Bluetooth not enabled";
@@ -131,6 +118,27 @@ public class MainActivity extends AppCompatActivity {
             BTstatus = "There is no bluetooth dongle on this device";
         }
         txtIndication.setText(BTstatus);
+    }
+
+    private void launchNextActivity(int buttonID){
+        bluetoothDevices.removeAllViewsInLayout();
+        TextView loadingMessage = new TextView(this);
+        loadingMessage.setText("Please wait, connecting to device and loading app content...");
+        loadingMessage.setLayoutParams(new ScrollView.LayoutParams(ScrollView.LayoutParams.MATCH_PARENT,ScrollView.LayoutParams.WRAP_CONTENT));
+        bluetoothDevices.addView(loadingMessage);
+        String address = "ERROR";
+
+        int i=0;
+        for(BluetoothDevice bd: devices){
+            if(i==buttonID){
+                address=bd.getAddress();
+            }
+            i++;
+        }
+
+        Intent intent = new Intent(this, SynthetizerCommands.class);
+        intent.putExtra(EXTRA_DEVICE_ADDRESS, address);
+        startActivity(intent);
     }
 
     private void requestUserToEnableBluetooth(){
