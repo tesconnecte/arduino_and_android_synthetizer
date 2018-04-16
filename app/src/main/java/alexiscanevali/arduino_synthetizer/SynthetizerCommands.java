@@ -11,10 +11,12 @@ package alexiscanevali.arduino_synthetizer;
 * Effectuer les actions envoyées par le mobile / Executing actions sent by mobile app
 * */
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.AsyncQueryHandler;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Matrix;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -23,9 +25,11 @@ import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
+import android.telephony.TelephonyManager;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.ImageView;
@@ -35,7 +39,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.bluetooth.*;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * An example full-screen activity that shows and hides the system UI (i.e.
@@ -120,11 +128,11 @@ public class SynthetizerCommands extends AppCompatActivity {
     private int osc2_y_coordinate = 50;
     private int xTouchCoordinate = 0;
     private int yTouchCoordinate = 0;
-    private int xCurrentCoordinate=0;
-    private int yCurrentCoordinate=0;
+    private int xCurrentCoordinate = 0;
+    private int yCurrentCoordinate = 0;
     private double rotationOsc1 = 0;
     private double rotationOsc2 = 0;
-    private int deviceSensorsToDisplay=-1;
+    private int deviceSensorsToDisplay = -1;
     private SensorManager sensorManager;
     private Sensor lightSensor;
     private Sensor proximitySensor;
@@ -137,10 +145,10 @@ public class SynthetizerCommands extends AppCompatActivity {
             }
             //Sensor max value: 40 000
             //Real life usage: 200
-            if(lux>=200.0){
+            if (lux >= 200.0) {
                 pctLightSensor = 100;
-            }else{
-                pctLightSensor = (int) Math.round((lux*100.0)/200.0);
+            } else {
+                pctLightSensor = (int) Math.round((lux * 100.0) / 200.0);
             }
             updateSensorDisplayUI(deviceSensorsToDisplay);
         }
@@ -158,7 +166,7 @@ public class SynthetizerCommands extends AppCompatActivity {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.CUPCAKE) {
                 distance = event.values[0];
             }
-            pctProximitySensor = 100-((int)(distance*10));
+            pctProximitySensor = 100 - ((int) (distance * 10));
             updateSensorDisplayUI(deviceSensorsToDisplay);
         }
 
@@ -169,8 +177,17 @@ public class SynthetizerCommands extends AppCompatActivity {
     };
     private LinearLayout forcetouchpanel;
 
-    private final static int REQUEST_CODE_ENABLE_BLUETOOTH = 0;
-    private Set<BluetoothDevice> devices;
+
+    private TelephonyManager tManager;
+    private UUID MY_UUID;
+    public Handler bluetoothIn;
+    public final int handlerState = 0;
+    private static String address;
+    private BluetoothAdapter btAdapter = null;
+    private BluetoothSocket btSocket = null;
+    private StringBuilder recDataString = new StringBuilder();
+
+    private ConnectedThread mConnectedThread;
 
     /*
     * END OF CUSTOM CLASS VARIABLE
@@ -191,7 +208,8 @@ public class SynthetizerCommands extends AppCompatActivity {
     /*
     * VARIABLES RECEIVED FROM ARDUINO
     * */
-    //ADD FIRST VARIABLE HERE
+    private String incomingMessage="";
+    private String incomingMessageLength="";
     /*
     * ... TO COMPLETE...
     * */
@@ -221,19 +239,19 @@ public class SynthetizerCommands extends AppCompatActivity {
         oscilator1.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                switch (motionEvent.getAction()){
+                switch (motionEvent.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        xTouchCoordinate = (int)motionEvent.getX();
-                        yTouchCoordinate = (int)motionEvent.getY();
+                        xTouchCoordinate = (int) motionEvent.getX();
+                        yTouchCoordinate = (int) motionEvent.getY();
                         break;
                     case MotionEvent.ACTION_MOVE:
-                        xCurrentCoordinate = (int)motionEvent.getX();
-                        yCurrentCoordinate = (int)motionEvent.getY();
+                        xCurrentCoordinate = (int) motionEvent.getX();
+                        yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc1(false);
                         break;
                     case MotionEvent.ACTION_UP:
-                        xCurrentCoordinate = (int)motionEvent.getX();
-                        yCurrentCoordinate = (int)motionEvent.getY();
+                        xCurrentCoordinate = (int) motionEvent.getX();
+                        yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc1(true);
                         break;
                 }
@@ -245,19 +263,19 @@ public class SynthetizerCommands extends AppCompatActivity {
         oscilator2.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                switch (motionEvent.getAction()){
+                switch (motionEvent.getAction()) {
                     case MotionEvent.ACTION_DOWN:
-                        xTouchCoordinate = (int)motionEvent.getX();
-                        yTouchCoordinate = (int)motionEvent.getY();
+                        xTouchCoordinate = (int) motionEvent.getX();
+                        yTouchCoordinate = (int) motionEvent.getY();
                         break;
                     case MotionEvent.ACTION_MOVE:
-                        xCurrentCoordinate = (int)motionEvent.getX();
-                        yCurrentCoordinate = (int)motionEvent.getY();
+                        xCurrentCoordinate = (int) motionEvent.getX();
+                        yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc2(false);
                         break;
                     case MotionEvent.ACTION_UP:
-                        xCurrentCoordinate = (int)motionEvent.getX();
-                        yCurrentCoordinate = (int)motionEvent.getY();
+                        xCurrentCoordinate = (int) motionEvent.getX();
+                        yCurrentCoordinate = (int) motionEvent.getY();
                         updateOsc2(true);
                         break;
                 }
@@ -331,19 +349,19 @@ public class SynthetizerCommands extends AppCompatActivity {
             lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
             sensorManager.registerListener(lightSensorEventListener, lightSensor, SensorManager.SENSOR_DELAY_NORMAL);
             proximitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY);
-            sensorManager.registerListener(proximitySensorEventListener,proximitySensor,SensorManager.SENSOR_DELAY_NORMAL);
+            sensorManager.registerListener(proximitySensorEventListener, proximitySensor, SensorManager.SENSOR_DELAY_NORMAL);
         }
 
         forcetouchpanel = (LinearLayout) findViewById(R.id.panel_force_pressure);
         forcetouchpanel.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                switch (motionEvent.getAction()){
+                switch (motionEvent.getAction()) {
                     case MotionEvent.ACTION_UP:
                         pctForcePressure = 0;
                         break;
                     default:
-                        pctForcePressure = (int)(motionEvent.getPressure()*100.0);
+                        pctForcePressure = (int) (motionEvent.getPressure() * 100.0);
                         break;
 
                 }
@@ -352,29 +370,76 @@ public class SynthetizerCommands extends AppCompatActivity {
             }
         });
 
-        /*
-        * Bluetooth setup
-        * */
-        BluetoothAdapter bluetooth = BluetoothAdapter.getDefaultAdapter();
-        String BTstatus;
+        /*if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.READ_PHONE_STATE},0);
+            return;
+        }*/
+        //MY_UUID = UUID.fromString(tManager.getDeviceId());
+        MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
+        Intent intent = getIntent();
+        address = intent.getStringExtra(MainActivity.EXTRA_DEVICE_ADDRESS);
+        bluetoothIn = new Handler() {
+            public void handleMessage(android.os.Message msg) {
+                if (msg.what == handlerState) {										//if message is what we want
+                    String readMessage = (String) msg.obj;                          // msg.arg1 = bytes from connect thread
+                    recDataString.append(readMessage);      						//keep appending to string until ~
+                    int endOfLineIndex = recDataString.indexOf("~");                // determine the end-of-line
+                    if (endOfLineIndex > 0) {                                       // make sure there data before ~
+                        String dataInPrint = recDataString.substring(0, endOfLineIndex);// extract string
+                        incomingMessage = ("Data Received = " + dataInPrint);
+                        int dataLength = dataInPrint.length();						//get length of data received
+                        incomingMessageLength = ("String Length = " + String.valueOf(dataLength));
 
-        if(bluetooth != null)
-        {
-            if (bluetooth.isEnabled()) {
-                String mydeviceaddress = bluetooth.getAddress();
-                String mydevicename = bluetooth.getName();
-                BTstatus = mydevicename + " : " + mydeviceaddress;
-                devices = bluetooth.getBondedDevices();
+                        recDataString.delete(0, recDataString.length()); 			//clear all string data
+                        // strIncom =" ";
+                        dataInPrint = " ";
+                    }
+                }
             }
-            else
-            {
-                BTstatus="Bluetooth not enabled";
-                requestUserToEnableBluetooth();
-            }
-        } else {
-            BTstatus= "There is no bluetooth dongle on this device";
+        };
+
+        btAdapter = BluetoothAdapter.getDefaultAdapter();       // get Bluetooth adapter
+        checkBTState();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        BluetoothDevice device = btAdapter.getRemoteDevice(address);
+
+        try {
+            btSocket = createBluetoothSocket(device);
+        } catch (IOException e) {
+            Toast.makeText(getBaseContext(), "Socket creation failed", Toast.LENGTH_LONG).show();
         }
-        Toast.makeText(this, BTstatus, Toast.LENGTH_LONG).show();
+        // Establish the Bluetooth socket connection.
+        try
+        {
+            btSocket.connect();
+        } catch (IOException e) {
+            Toast.makeText(this,"Connection failed"+e.getMessage(),Toast.LENGTH_LONG);
+            try
+            {
+                btSocket.close();
+            } catch (IOException e2)
+            {
+                Toast.makeText(this,"Can't close socket"+e2.getMessage(),Toast.LENGTH_LONG);
+                //insert code to deal with this
+            }
+        }
+        mConnectedThread = new ConnectedThread(btSocket);
+        mConnectedThread.start();
+
+        //I send a character when resuming.beginning transmission to check device is connected
+        //If it is not an exception will be thrown in the write method and finish() will be called
+        mConnectedThread.write("x");
     }
 
     @Override
@@ -591,10 +656,11 @@ public class SynthetizerCommands extends AppCompatActivity {
                 txt_sensor_display_3.setText("Proximity sensor: "+Integer.toString(pctProximitySensor)+"%");
                 txt_sensor_display_4.setText("Force pressure: "+Integer.toString(pctForcePressure)+"%");
                 txt_sensor_display_5.setText("");
+                sendDataToArduino();
                 break;
             case 1://Arduino
                 txt_sensor_display_1.setText("Arduino sensors");
-                txt_sensor_display_2.setText("");
+                txt_sensor_display_2.setText(incomingMessage);
                 txt_sensor_display_3.setText("");
                 txt_sensor_display_4.setText("");
                 txt_sensor_display_5.setText("");
@@ -607,11 +673,6 @@ public class SynthetizerCommands extends AppCompatActivity {
                 txt_sensor_display_5.setText("");
                 break;
         }
-    }
-
-    private void requestUserToEnableBluetooth(){
-        Intent enableBlueTooth = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-        startActivityForResult(enableBlueTooth, REQUEST_CODE_ENABLE_BLUETOOTH);
     }
 
     public void switchSensorDisplayMode(View view){
@@ -627,22 +688,85 @@ public class SynthetizerCommands extends AppCompatActivity {
         updateSensorDisplayUI(deviceSensorsToDisplay);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_CODE_ENABLE_BLUETOOTH)
-            return;
-        if (resultCode == RESULT_OK) {
-            // User activated bluetooth
+    private BluetoothSocket createBluetoothSocket(BluetoothDevice device) throws IOException {
+
+        return  device.createRfcommSocketToServiceRecord(MY_UUID);
+        //creates secure outgoing connecetion with BT device using UUID
+    }
+
+    private void checkBTState() {
+
+        if(btAdapter==null) {
+            Toast.makeText(getBaseContext(), "Device does not support bluetooth", Toast.LENGTH_LONG).show();
         } else {
-            // User hasn't activated bluetooth
-            requestUserToEnableBluetooth();
+            if (btAdapter.isEnabled()) {
+            } else {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivityForResult(enableBtIntent, 1);
+            }
         }
     }
 
-
-
+    public void sendDataToArduino(){
+        mConnectedThread.write("O"+Integer.toString(pctOsc1));
+        mConnectedThread.write("S"+Integer.toString(pctOsc2));
+        mConnectedThread.write("F"+Integer.toString(pctFilter));
+        mConnectedThread.write("L"+Integer.toString(pctLFO));
+        mConnectedThread.write("V"+Integer.toString(pctVolume));
+        mConnectedThread.write("I"+Integer.toString(pctLightSensor));
+        mConnectedThread.write("P"+Integer.toString(pctProximitySensor));
+        mConnectedThread.write("F"+Integer.toString(pctForcePressure));
+    }
     /*
     * END OF CUSTOM METHODS
     * */
+    public class ConnectedThread extends Thread {
+        private final InputStream mmInStream;
+        private final OutputStream mmOutStream;
+
+        //creation of the connect thread
+        public ConnectedThread(BluetoothSocket socket) {
+            InputStream tmpIn = null;
+            OutputStream tmpOut = null;
+
+            try {
+                //Create I/O streams for connection
+                tmpIn = socket.getInputStream();
+                tmpOut = socket.getOutputStream();
+            } catch (IOException e) { }
+
+            mmInStream = tmpIn;
+            mmOutStream = tmpOut;
+        }
+
+        public void run() {
+            byte[] buffer = new byte[256];
+            int bytes;
+
+            // Keep looping to listen for received messages
+            while (true) {
+                try {
+                    bytes = mmInStream.read(buffer);            //read bytes from input buffer
+                    String readMessage = new String(buffer, 0, bytes);
+                    // Send the obtained bytes to the UI Activity via handler
+                    bluetoothIn.obtainMessage(handlerState, bytes, -1, readMessage).sendToTarget();
+                } catch (IOException e) {
+                    break;
+                }
+            }
+        }
+        //write method
+        public void write(String input) {
+            byte[] msgBuffer = input.getBytes();           //converts entered String into bytes
+            try {
+                mmOutStream.write(msgBuffer);                //write bytes over BT connection via outstream
+            } catch (IOException e) {
+                //if you cannot write, close the application
+                Toast.makeText(getBaseContext(), "Connection Failure"+e.getMessage(), Toast.LENGTH_SHORT).show();
+                //finish();
+
+            }
+        }
+    }
+
 }

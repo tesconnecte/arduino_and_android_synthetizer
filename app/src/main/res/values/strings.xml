@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">arduino_synthetizer</string>
 
+    <string name="txt_bluetooth_info">Select the arduino device below:</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
     <string name="force_panel_sound_title">FORCE PRESSURE PANEL</string>
